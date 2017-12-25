@@ -20,7 +20,7 @@ typedef std::function<void(SDL_Event&)> Handler;
 
   void handle(SDL_Event& e);
  private:
-  SdlEventHandler() {};
+  SdlEventHandler() = default;;
   std::map<Uint32, std::vector<Handler>> handler_map;
 };
 

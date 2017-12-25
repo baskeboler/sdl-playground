@@ -6,7 +6,7 @@
 #include "SdlRenderer.h"
 
 namespace {
-  static std::shared_ptr<SdlRenderer> instance;
+std::shared_ptr<SdlRenderer> instance;
 }
 
 std::shared_ptr<SdlRenderer> SdlRenderer::getInstance() {
@@ -39,4 +39,12 @@ void SdlRenderer::clear() {
 }
 void SdlRenderer::present() {
   SDL_RenderPresent(_renderer);
+}
+void SdlRenderer::fillRect(SdlRect &r) {
+  SDL_Rect rect{r.getX(), r.getY(), r.getW(), r.getH()};
+  SDL_RenderFillRect(_renderer, &rect);
+}
+void SdlRenderer::drawRect(SdlRect &r) {
+  SDL_Rect rect{r.getX(), r.getY(), r.getW(), r.getH()};
+  SDL_RenderDrawRect(_renderer, &rect);
 }

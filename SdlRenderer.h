@@ -6,6 +6,7 @@
 #define SDL_PROY_SDLRENDERER_H
 #include <memory>
 #include <SDL.h>
+#include "SdlRect.h"
 
 class SdlRenderer {
  public:
@@ -20,6 +21,9 @@ class SdlRenderer {
   void set_draw_color(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
   void clear();
   void present();
+  void fillRect(SdlRect& r);
+
+  void drawRect(SdlRect& r);
   virtual ~SdlRenderer();
 };
 

@@ -5,10 +5,9 @@
 #include <SDL_image.h>
 #include <iostream>
 #include "SdlTexture.h"
-#include "globals.h"
-#include "SdlRenderer.h"
 
-SdlTexture::SdlTexture() : _texture{nullptr}, width{0}, height{0} {
+SdlTexture::SdlTexture() : _texture{nullptr}, width{0}, height{0} , pos{0, 0},
+vel{0,0}{
 
 }
 SdlTexture::~SdlTexture() {
@@ -52,6 +51,8 @@ void SdlTexture::free() {
   }
 
 }
+
+
 void SdlTexture::render(int x, int y) {
 
   SDL_Rect quad{x, y, width, height};
@@ -68,4 +69,63 @@ void SdlTexture::render(const SdlRect &src, const SdlRect &dst) {
 
   SDL_RenderCopy(SdlRenderer::getInstance()->get_renderer(), _texture, &src_quad, &dst_quad);
 
+}
+
+
+void SdlTexture::render() {
+  render(pos.x, pos.y);
+}
+bool SdlTexture::load_from_renderer_text(const std::string &text, SDL_Color color, TTF_Font *font) {
+  free();
+
+  SDL_Surface *surface = TTF_RenderText_Solid(font, text.c_str(), color);
+  if (surface != nullptr) {
+    _texture = SDL_CreateTextureFromSurface(SdlRenderer::getInstance()->get_renderer(), surface);
+    if (_texture == nullptr) {
+      std::cout << "failed to create text texture: " << SDL_GetError() << std::endl;
+    } else {
+      width = surface->w;
+      height = surface->h;
+    }
+    SDL_FreeSurface(surface);
+  } else {
+    std::cout << "unable to render text: " << TTF_GetError() << std::endl;
+  }
+  return _texture != nullptr;
+}
+const SdlVector2 &SdlTexture::getPos() const {
+  return pos;
+}
+void SdlTexture::setPos(const SdlVector2 &pos) {
+  SdlTexture::pos = pos;
+}
+const SdlVector2 &SdlTexture::getVel() const {
+  return vel;
+}
+void SdlTexture::setVel(const SdlVector2 &vel) {
+  SdlTexture::vel = vel;
+}
+void SdlTexture::update() {
+  pos = pos+vel;
+}
+int SdlTexture::getWidth() const {
+  return width;
+}
+int SdlTexture::getHeight() const {
+  return height;
+}
+void SdlTexture::render(const SdlRect &srcRect, const SdlRect &dstRect, const SdlVector2 &c, double angle, SDL_RendererFlip flip) {
+
+//    SDL_RendererFlip flip = SDL_FLIP_NONE;
+  SDL_Rect src{srcRect.getX(), srcRect.getY(), srcRect.getW(), srcRect.getH()} ;
+  SDL_Rect dst{dstRect.getX(), dstRect.getY(), dstRect.getW(), dstRect.getH()} ;
+//    double angle =0;
+  SDL_Point center{dst.w/2,dst.h/2};
+  SDL_RenderCopyEx(SdlRenderer::getInstance()->get_renderer(), _texture, &src, &dst, angle, &center, flip);
+}
+SDL_RendererFlip SdlTexture::getFlip() const {
+  return flip;
+}
+void SdlTexture::setFlip(SDL_RendererFlip flip) {
+  SdlTexture::flip = flip;
 }

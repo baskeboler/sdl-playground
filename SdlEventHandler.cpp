@@ -5,7 +5,7 @@
 #include "SdlEventHandler.h"
 
 namespace {
-static std::shared_ptr<SdlEventHandler> instance;
+std::shared_ptr<SdlEventHandler> instance;
 }
 
 std::shared_ptr<SdlEventHandler> SdlEventHandler::get_instance() {
@@ -15,7 +15,7 @@ std::shared_ptr<SdlEventHandler> SdlEventHandler::get_instance() {
   return instance;
 }
 void SdlEventHandler::handle(SDL_Event &e) {
-  for (auto h: handler_map[e.type]){
+  for (const auto &h: handler_map[e.type]){
     h(e);
   }
 }

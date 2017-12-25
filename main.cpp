@@ -4,21 +4,23 @@
 #include <iostream>
 #include "globals.h"
 #include "SdlTexture.h"
-#include "SdlRenderer.h"
 #include "SdlTimer.h"
 #include "SdlEventHandler.h"
+#include "SdlAnimatedSprite.h"
+#include "SdlWindow.h"
+#include "SdlFontManager.h"
+#include "SdlMixer.h"
+#include "SdlSceneBackground.h"
 
-SDL_Window *window = nullptr;
-
-
-SdlTexture bg;
-SdlTexture mario;
+std::unique_ptr<SdlWindow> window;
+SdlSceneBackground bg;
 SdlTexture text;
+SdlAnimatedSprite mario;
 
-TTF_Font* font = nullptr;
 bool init();
 bool load_media();
 void close();
+void loadMario();
 
 int main() {
   std::cout << "initializing" << std::endl;
@@ -34,55 +36,60 @@ int main() {
 
       std::cout << "displaying image" << std::endl;
       SdlTimer cap_timer;
-
-      auto quitFn = [&](SDL_Event& event) {
+      int i = 0, j = 0;
+      auto bgFn = [&](SDL_Event &event) {
+        switch (event.key.keysym.sym) {
+          case SDLK_LEFT:bg.setVel(SdlVector2{1, 0} + bg.getVel());
+            break;
+          case SDLK_RIGHT:bg.setVel(bg.getVel() - SdlVector2{1, 0});
+            break;
+          case SDLK_DOWN:bg.setVel(bg.getVel() - SdlVector2{0, 1});
+            break;
+          case SDLK_UP:bg.setVel(bg.getVel() + SdlVector2{0, 1});
+            break;
+          default:break;
+        }
+      };
+      auto quitFn = [&](SDL_Event &event) {
         quit = true;
       };
-      auto keyFn = [&](SDL_Event& event) {
+      auto keyFn = [&](SDL_Event &event) {
         switch (event.key.keysym.sym) {
-          case SDLK_ESCAPE:
-            quit = true;
+          case SDLK_ESCAPE:quit = true;
             break;
 
-          default:
-            break;
+          default:break;
         }
       };
 
       SdlEventHandler::get_instance()->add_handler(SDL_QUIT, quitFn);
       SdlEventHandler::get_instance()->add_handler(SDL_KEYDOWN, keyFn);
+      SdlEventHandler::get_instance()->add_handler(SDL_KEYDOWN, bgFn);
       while (!quit) {
         cap_timer.start();
-        while(SDL_PollEvent(&e) != 0) {
-//          if (e.type == SDL_QUIT) {
-//            quit = true;
-//          } else if (e.type == SDL_KEYDOWN) {
-//
-//            switch (e.key.keysym.sym) {
-//              case SDLK_ESCAPE:
-//                quit = true;
-//                break;
-//
-//              default:
-//                break;
-//            }
-//          }
+        while (SDL_PollEvent(&e) != 0) {
           SdlEventHandler::get_instance()->handle(e);
         }
         SdlRenderer::getInstance()->set_draw_color(0xFF, 0xFF, 0xFF, 0xFF);
         SdlRenderer::getInstance()->clear();
 
-        bg.render(0,0, SdlRect{0, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
-        mario.render( SdlRect{102, 140, 26, 32}, SdlRect{100, 100, 52, 64});
-        text.render(30, 30);
+        bg.update();
+        bg.render();
+
+        mario.update();
+        mario.render();
+//        text.se
+        text.render();
+
+        SdlRenderer::getInstance()->set_draw_color( 0xff, 0, 0, 0xff);
+        SdlRect text_rect{text.getPos().x, text.getPos().y, text.getWidth(), text.getHeight()};
+        SdlRenderer::getInstance()->drawRect(text_rect );
         SdlRenderer::getInstance()->present();
         int frame_ticks = cap_timer.getTicks();
         if (frame_ticks < TICKS_PER_FRAME) {
-          SDL_Delay(TICKS_PER_FRAME - frame_ticks);
+          SDL_Delay(static_cast<Uint32>(TICKS_PER_FRAME - frame_ticks));
         }
       }
-
-//      SDL_Delay(3000);
     }
   }
   std::cout << "Bye bye, World!" << std::endl;
@@ -90,98 +97,103 @@ int main() {
   return 0;
 }
 
-bool init(){
+bool init() {
   bool success = true;
-  if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+  if (SDL_Init( SDL_INIT_EVERYTHING) < 0) {
     std::cout << "SDL could not initialize! SDL_Error: " << SDL_GetError() << std::endl;
     success = false;
   } else {
-    window = SDL_CreateWindow("SDL Tutorial",
-                              SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED,
-                              SCREEN_WIDTH,
-                              SCREEN_HEIGHT,
-                              SDL_WINDOW_SHOWN);
-    if (window == nullptr) {
-      std::cout << "Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-      success = false;
-    } else {
-      auto r = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-      SdlRenderer::getInstance()->set_renderer(r);
-      if (r == nullptr) {
-        std::cout << "Could not create renderer, SDL_ERROR: " << SDL_GetError() << std::endl;
-        success = false;
-      } else {
-        SDL_SetRenderDrawColor(r, 0xFF, 0xFF, 0xFF, 0xFF);
-        SDL_RenderClear(r);
-        int img_flags = IMG_INIT_PNG;
-        if (!(IMG_Init(img_flags) & img_flags)) {
-          std::cout << "Failed to initialize PNG, SDL_ERROR: " << IMG_GetError() << std::endl;
-          success = false;
-        }
-        if (TTF_Init() < 0) {
-          std::cout << "Failed to load TTF lib" << TTF_GetError() << std::endl;
-          success = false;
-        }
+    try {
+      window = std::make_unique<SdlWindow>("SDL Tutorial",
+                                           SDL_WINDOWPOS_UNDEFINED,
+                                           SDL_WINDOWPOS_UNDEFINED,
+                                           SCREEN_WIDTH,
+                                           SCREEN_HEIGHT,
+                                           SDL_WINDOW_SHOWN);
+      window->init_renderer();
+      auto renderer = SdlRenderer::getInstance();
+      renderer->set_draw_color(0xff, 0xff, 0xff, 0xff);
+      renderer->clear();
+      int img_flags = IMG_INIT_PNG;
+      if ((IMG_Init(img_flags) & img_flags) == 0) {
+        std::stringstream ss;
+        ss << "Failed to initialize PNG, SDL_ERROR: " << IMG_GetError();
+        throw SdlException(ss.str());
       }
-//      surface = SDL_GetWindowSurface(window);
-//      SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, 0xff, 0xff, 0xff));
-//      SDL_UpdateWindowSurface(window);
-
-//      SDL_Delay(2000);
+      if (TTF_Init() < 0) {
+        std::stringstream ss;
+        ss << "Failed to load TTF lib" << TTF_GetError();
+        throw SdlException(ss.str());
+      }
+    } catch (SdlException &e) {
+      std::cout << "Exception: " << e.what() << std::endl;
+      success = false;
     }
   }
   return success;
-}
-
-SDL_Texture* load_texture(const std::string &path) {
-  auto loaded_surface = IMG_Load(path.c_str());
-  SDL_Texture* texture = nullptr;
-
-  if(loaded_surface == nullptr) {
-    std::cout << "Failed to load " << path << ", SDL_Error: " << IMG_GetError() << std::endl;
-  } else {
-    texture = SDL_CreateTextureFromSurface(SdlRenderer::getInstance()->get_renderer(), loaded_surface);
-    if (texture == nullptr) {
-      std::cout << "unable to load texture for " << path << ", SDL_Error: " << SDL_GetError() << std::endl;
-    }
-    SDL_FreeSurface(loaded_surface);
-  }
-  return texture;
 }
 
 bool load_media() {
   bool success = true;
-/*  for (int i = 0; i < KEY_PRESS_SURFACE_TOTAL; ++i) {
-    auto filename = std::to_string(i) + ".png";
-    textures[i] = load_texture(filename);
-    if (textures[i] == nullptr) {
-      std::cout << "Failed to load " << filename << std::endl;
-      success = false;
-    }
-  }
-  current_texture = textures[KEY_PRESS_SURFACE_DEFAULT];
-  */
-  font = TTF_OpenFont("fonts/Capture_it.ttf", 32);
+  auto fm = SdlFontManager::get_instance();
+  fm->load_font("capture", "fonts/Capture_it.ttf", 32);
   bg.load_from_file("images/xmas-bg.png");
+  SdlRect clip{0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+
   mario.load_from_file("images/mario.png");
-  text.load_from_renderer_text("Hello!", SDL_Color{0,0,0,0xff},font);
+  loadMario();
+  text.load_from_renderer_text("Hello!", SDL_Color{0, 0, 0, 0xff}, fm->get_font("capture"));
+
+  auto mixer = SdlMixer::get_instance();
+  mixer->loadChunk("jump", "sounds/Jumping SFX.wav");
+  mixer->loadMusic("mario-theme", "sounds/mario-theme.mp3");
+  mixer->playMusic("mario-theme");
+  auto jumpFn = [mixer](SDL_Event& e) {
+    if (e.key.keysym.sym == SDLK_SPACE){
+      mixer->playChunk("jump");
+    }
+  };
+
+  auto marioFn = [&](SDL_Event& e) {
+    switch (e.key.keysym.sym) {
+      case SDLK_LEFT:
+        mario.setFlip(SDL_FLIP_HORIZONTAL);
+
+        break;
+      case SDLK_RIGHT:
+        mario.setFlip(SDL_FLIP_NONE);
+        break;
+      case SDLK_r:
+        mario.selectAnimation("racoon");
+        break;
+      case SDLK_d:
+        mario.selectAnimation("default");
+        break;
+      default:
+        break;
+    }
+  };
+  SdlEventHandler::get_instance()->add_handler(SDL_KEYDOWN, marioFn);
+  SdlEventHandler::get_instance()->add_handler(SDL_KEYDOWN, jumpFn);
   return success;
 }
 
 void close() {
-  /*for (int i = 0; i < KEY_PRESS_SURFACE_TOTAL; ++i) {
-
-    SDL_DestroyTexture(textures[i]);
-    textures[i] = nullptr;
-  }*/
-  bg.free();
-  mario.free();
-//  SDL_DestroyRenderer(DefaultRenderer());
-  SDL_DestroyWindow(window);
-//  gRenderer = nullptr;
-  window = nullptr;
   IMG_Quit();
-  TTF_Quit();
   SDL_Quit();
+}
+
+void loadMario() {
+  auto frs = {
+      SdlRect{195, 47, 18, 28}, SdlRect{213, 47, 18, 28}, SdlRect{232, 47, 18, 28}
+  };
+  mario.setFrames("default", frs);
+  auto frs2 = {
+      SdlRect{79,140,23,30},
+      SdlRect{104,140,23,30},
+      SdlRect{129,140,23,30}
+  };
+  mario.setFrames("racoon", frs2);
+  mario.setScale(3.0);
+  mario.setPos(SdlVector2{SCREEN_WIDTH/2 - mario.getWidth()/2, SCREEN_HEIGHT/2 - mario.getHeight()/2});
 }
