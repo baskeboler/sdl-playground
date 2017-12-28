@@ -7,9 +7,9 @@
 
 
 //static SDL_Renderer* gRenderer = nullptr;
-static const int SCREEN_WIDTH = 800;
-static const int SCREEN_HEIGHT = 600;
-static const int FPS = 15;
+static const int SCREEN_WIDTH = 1024;
+static const int SCREEN_HEIGHT = 768;
+static const int FPS = 25;
 static const int TICKS_PER_FRAME = 1000 / FPS;
 //
 //static SDL_Renderer* DefaultRenderer() {

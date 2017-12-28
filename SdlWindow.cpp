@@ -14,6 +14,7 @@ void SdlWindow::init_renderer() {
     throw SdlException("Window invalid. Renderer creation failed.");
   }
   auto r = SDL_CreateRenderer(_window, -1, SDL_RENDERER_ACCELERATED);
+
   if (r == nullptr) {
     std::stringstream ss;
     ss << "Failed to create renderer" << SDL_GetError();

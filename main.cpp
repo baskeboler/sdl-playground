@@ -11,7 +11,7 @@
 #include "SdlFontManager.h"
 #include "SdlMixer.h"
 #include "SdlSceneBackground.h"
-
+#include <Box2D/Box2D.h>
 std::unique_ptr<SdlWindow> window;
 SdlSceneBackground bg;
 SdlTexture text;
@@ -79,11 +79,11 @@ int main() {
         mario.update();
         mario.render();
 //        text.se
-        text.render();
 
         SdlRenderer::getInstance()->set_draw_color( 0xff, 0, 0, 0xff);
         SdlRect text_rect{text.getPos().x, text.getPos().y, text.getWidth(), text.getHeight()};
-        SdlRenderer::getInstance()->drawRect(text_rect );
+        SdlRenderer::getInstance()->drawRect(text_rect, 0,SDL_Color{0xff,0xff,0xff,0});
+        text.render();
         SdlRenderer::getInstance()->present();
         int frame_ticks = cap_timer.getTicks();
         if (frame_ticks < TICKS_PER_FRAME) {
